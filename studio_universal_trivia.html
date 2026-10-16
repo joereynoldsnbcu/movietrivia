@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<title>Studio Universal Movie Trivia</title>
+<!-- v5: mobile zoom fix, footer always visible, everything clipped to the screen. v4: mobile-friendly video, Play again (practice) mode, more button spacing. v3: cinema.mp4 background video. v2: smaller buttons, wider spacing, no "Studio Universal" heading, smaller logo -->
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="theme-color" content="#1b0f3b">
+<style>
+  :root{
+    --bg1:#1b0f3b;--bg2:#2b1166;--bg3:#0d3b7a;
+    --gold:#ffc83d;--pink:#ff4f9a;--cyan:#33d6ff;--green:#22c97a;--red:#ff5a5a;
+    --white:#fff;--muted:#c9c3e6;--panel:rgba(20,10,48,.72);--line:rgba(255,255,255,.2);
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html{background:var(--bg1)}
+  html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden;color:var(--white);
+    font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    -webkit-text-size-adjust:100%;text-size-adjust:100%;
+    touch-action:manipulation;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+  /* Lock the page to exactly the visible screen (follows mobile address bars). */
+  body{position:fixed;inset:0;width:100%;height:100%;height:var(--app-h,100dvh)}
+  button{touch-action:manipulation}
+  /* Every layer below is clipped to the screen so nothing can widen the page. */
+  #fx{position:fixed;inset:0;overflow:hidden;z-index:-1;pointer-events:none;contain:strict}
+  #app{position:absolute;inset:0;overflow:hidden}
+  #confettiLayer{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:50}
+  button,a{font:inherit}
+  button:focus-visible,a:focus-visible{outline:4px solid var(--gold);outline-offset:4px}
+
+  /* ---------- Background ---------- */
+  #bg{position:absolute;inset:0;z-index:-3;
+    background:radial-gradient(circle at 15% 20%,rgba(255,79,154,.35),transparent 45%),
+               radial-gradient(circle at 85% 75%,rgba(51,214,255,.30),transparent 50%),
+               linear-gradient(135deg,var(--bg1),var(--bg2) 55%,var(--bg3))}
+  #bgVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;
+    opacity:0;z-index:-2;pointer-events:none;transform:translateZ(0);-webkit-transform:translateZ(0);
+    backface-visibility:hidden;transition:opacity 1.2s ease;background:transparent}
+  #bgVideo.playing{opacity:.25}
+  #bgVideo::-webkit-media-controls,#bgVideo::-webkit-media-controls-start-playback-button{display:none!important;-webkit-appearance:none}
+  .spot{position:absolute;width:60vmax;height:60vmax;border-radius:50%;z-index:-1;filter:blur(60px);opacity:.25;
+    animation:drift 18s ease-in-out infinite alternate;pointer-events:none}
+  .spot.a{background:var(--pink);top:-30vmax;left:-20vmax}
+  .spot.b{background:var(--cyan);bottom:-30vmax;right:-20vmax;animation-delay:-9s}
+  @keyframes drift{to{transform:translate(10vmax,8vmax)}}
+
+  /* ---------- Screens ---------- */
+  .screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    padding:max(20px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right))
+            max(48px,calc(env(safe-area-inset-bottom) + 36px)) max(20px,env(safe-area-inset-left));
+    overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overflow-anchor:none;overscroll-behavior:contain;
+    transition:transform .6s cubic-bezier(.22,.8,.25,1),opacity .4s}
+  .hidden-left{transform:translateX(-105%);opacity:0;pointer-events:none;visibility:hidden}
+  .hidden-right{transform:translateX(105%);opacity:0;pointer-events:none;visibility:hidden}
+  .screen{transition:transform .6s cubic-bezier(.22,.8,.25,1),opacity .4s,visibility 0s linear 0s}
+  .hidden-left,.hidden-right{transition:transform .6s cubic-bezier(.22,.8,.25,1),opacity .4s,visibility 0s linear .6s}
+  .wrap,.qtext,.opt,.review div,.rcard .tt,.theme-pill,.tagline{overflow-wrap:anywhere;word-break:normal;max-width:100%}
+  .wrap{width:min(1000px,100%);margin:auto;text-align:center}
+
+  /* ---------- Landing ---------- */
+  .logo{display:block;max-width:min(260px,46vw);max-height:11vh;margin:0 auto 14px;object-fit:contain}
+  .brand{margin:0;line-height:1;font-weight:900;text-transform:uppercase;letter-spacing:.02em}
+  .brand .l1{display:block;font-size:clamp(16px,2.6vw,30px);letter-spacing:.35em;color:var(--cyan)}
+  .brand .l2{display:block;font-size:clamp(38px,8vw,96px);
+    background:linear-gradient(90deg,var(--gold),var(--pink));-webkit-background-clip:text;background-clip:text;
+    color:transparent;filter:drop-shadow(0 6px 24px rgba(0,0,0,.45));margin-top:6px}
+  .brand .l3{display:block;font-size:clamp(18px,3.2vw,38px);letter-spacing:.28em;margin-top:6px}
+  .datestamp{color:var(--muted);letter-spacing:.2em;text-transform:uppercase;font-size:clamp(11px,1.5vw,15px);margin:22px 0 6px}
+  .theme-pill{display:inline-block;margin:8px 0 18px;padding:10px 22px;border-radius:999px;
+    background:rgba(255,200,61,.14);border:2px solid rgba(255,200,61,.5);color:var(--gold);
+    font-weight:800;font-size:clamp(15px,2.2vw,24px)}
+  .tagline{color:#e9e4ff;font-size:clamp(15px,2vw,21px);max-width:640px;margin:0 auto 26px;line-height:1.5}
+  .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;width:min(640px,100%);margin:0 auto 34px}
+  .stat{padding:14px 6px;border:1px solid var(--line);border-radius:16px;background:var(--panel)}
+  .stat b{display:block;font-size:clamp(24px,4vw,40px);color:var(--gold);line-height:1.1}
+  .stat span{display:block;font-size:clamp(9.5px,1.3vw,12px);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+  .actions-col{display:flex;flex-direction:column;align-items:center;gap:30px}
+
+  /* ---------- Buttons ---------- */
+  .btn{min-height:50px;padding:11px 22px;border:2px solid var(--line);border-radius:16px;color:#fff;
+    background:rgba(30,16,70,.8);font-weight:800;cursor:pointer;letter-spacing:.03em;text-decoration:none;
+    display:inline-flex;align-items:center;justify-content:center;transition:transform .15s,background .15s,border-color .15s}
+  .btn:hover:not(:disabled),.btn:focus-visible{transform:scale(1.04);border-color:var(--gold)}
+  .btn.primary{background:linear-gradient(90deg,var(--gold),#ff9f3d);color:#2a1300;border-color:#ffe39a}
+  .btn.pink{background:var(--pink);border-color:#ff9cc6}
+  .btn.ghost{background:transparent;min-height:44px;font-size:clamp(12px,1.4vw,15px)}
+  .btn-lg{font-size:clamp(15px,2vw,20px);min-width:min(270px,72vw);text-transform:uppercase}
+  .btn:disabled{opacity:.45;cursor:default;transform:none}
+
+  /* ---------- Game ---------- */
+  #game .wrap{display:flex;flex-direction:column;gap:clamp(12px,2.2vh,22px)}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .round-name{font-weight:900;font-size:clamp(16px,2.4vw,26px);color:var(--gold);text-align:left}
+  .round-sub{font-size:clamp(11px,1.4vw,13px);letter-spacing:.18em;text-transform:uppercase;color:var(--muted);text-align:left}
+  .score{font-weight:900;font-size:clamp(18px,2.6vw,30px);font-variant-numeric:tabular-nums}
+  .score small{display:block;font-size:.45em;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
+  .dots{display:flex;gap:clamp(5px,1vw,10px);justify-content:center}
+  .dot{width:clamp(14px,2.4vw,26px);height:clamp(14px,2.4vw,26px);border-radius:50%;
+    background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.25);transition:background .3s,transform .3s}
+  .dot.now{border-color:var(--gold);transform:scale(1.2)}
+  .dot.ok{background:var(--green);border-color:var(--green)}
+  .dot.bad{background:var(--red);border-color:var(--red)}
+  .timebar{height:clamp(8px,1.2vh,14px);border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden}
+  .timebar i{display:block;height:100%;width:100%;border-radius:99px;
+    background:linear-gradient(90deg,var(--green),var(--gold),var(--pink));transform-origin:left;transition:transform .1s linear}
+  .qcard{background:var(--panel);border:1px solid var(--line);border-radius:24px;
+    padding:clamp(18px,3.4vw,40px);box-shadow:0 20px 60px rgba(0,0,0,.35);animation:pop .4s}
+  .qnum{font-size:clamp(11px,1.4vw,14px);letter-spacing:.24em;text-transform:uppercase;color:var(--cyan);font-weight:800;margin-bottom:10px}
+  .qtext{font-size:clamp(20px,3.3vw,40px);font-weight:800;line-height:1.25;margin:0}
+  .options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(18px,2.8vw,34px)}
+  .opt{position:relative;text-align:left;min-height:clamp(54px,8.5vh,92px);padding:12px 16px 12px clamp(54px,6.4vw,72px);
+    border:3px solid var(--line);border-radius:18px;background:rgba(30,16,70,.85);color:#fff;cursor:pointer;
+    font-weight:700;font-size:clamp(15px,2vw,23px);line-height:1.25;
+    transition:transform .15s,background .15s,border-color .15s;opacity:0;animation:pop .35s forwards}
+  .opt:nth-child(2){animation-delay:.05s}.opt:nth-child(3){animation-delay:.1s}.opt:nth-child(4){animation-delay:.15s}
+  .opt .key{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:clamp(30px,4.2vw,44px);height:clamp(30px,4.2vw,44px);
+    border-radius:12px;display:grid;place-items:center;font-weight:900;color:#2a1300;font-size:clamp(15px,2vw,22px)}
+  .opt:nth-child(1) .key{background:var(--gold)}.opt:nth-child(2) .key{background:var(--pink);color:#fff}
+  .opt:nth-child(3) .key{background:var(--cyan)}.opt:nth-child(4) .key{background:#9b7bff;color:#fff}
+  .opt:hover:not(:disabled),.opt:focus-visible{transform:scale(1.03);border-color:var(--gold);background:rgba(60,30,120,.9)}
+  .opt:disabled{cursor:default}
+  .opt.right{background:rgba(34,201,122,.35);border-color:var(--green);animation:none;opacity:1}
+  .opt.wrong{background:rgba(255,90,90,.3);border-color:var(--red);animation:shake .4s;opacity:1}
+  .opt.dim{opacity:.45;animation:none}
+  .feedback{min-height:1.6em;font-weight:900;font-size:clamp(18px,2.6vw,30px)}
+  .feedback.ok{color:var(--green)}.feedback.bad{color:var(--red)}
+  .nextrow{display:flex;justify-content:center;min-height:50px;margin-top:14px}
+  @keyframes pop{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+  @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
+  /* ---------- Results ---------- */
+  .result-card{background:var(--panel);border:1px solid var(--line);border-radius:26px;padding:clamp(20px,4vw,44px);animation:pop .5s}
+  .big-score{font-size:clamp(56px,12vw,140px);font-weight:900;line-height:1;
+    background:linear-gradient(90deg,var(--gold),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .stars{font-size:clamp(30px,6vw,64px);letter-spacing:.1em;margin:6px 0}
+  .verdict{font-size:clamp(20px,3vw,34px);font-weight:900;margin:6px 0}
+  .points{color:var(--muted);font-size:clamp(14px,1.8vw,19px);margin-bottom:18px}
+  .review{text-align:left;display:grid;gap:10px;margin:30px 0 18px;max-height:none}
+  .review div{padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.06);font-size:clamp(13px,1.6vw,16px);line-height:1.4}
+  .review b{color:var(--gold)}
+  .review .x{color:var(--red);font-weight:800}.review .t{color:var(--green);font-weight:800}
+  .banner{margin:16px 0 0;padding:14px;border-radius:14px;background:rgba(255,200,61,.12);border:1px solid rgba(255,200,61,.4);font-weight:800;font-size:clamp(15px,2vw,20px)}
+  .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(22px,3.6vw,40px);margin-top:32px}
+  .next-in{color:var(--muted);margin-top:22px;letter-spacing:.16em;text-transform:uppercase;font-size:clamp(11px,1.4vw,13px);font-variant-numeric:tabular-nums}
+  .archive-flag{display:none;padding:10px 16px;border-radius:12px;background:rgba(51,214,255,.12);border:1px solid rgba(51,214,255,.4);
+    font-weight:700;font-size:clamp(12px,1.6vw,15px);color:#bdf2ff}
+  .archive-flag.on{display:block}
+  .archive-flag.practice{background:rgba(255,79,154,.14);border-color:rgba(255,79,154,.5);color:#ffd0e4}
+  .practice-note{color:var(--muted);font-size:clamp(13px,1.6vw,16px);margin:10px 0 0}
+
+  /* ---------- Archive ---------- */
+  .archive-head h2{font-size:clamp(26px,4vw,48px);margin:0 0 6px;font-weight:900;text-transform:uppercase}
+  .archive-head p{color:var(--muted);margin:0 0 18px}
+  .archive-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:26px;text-align:left}
+  .rcard{position:relative;padding:16px 16px 50px;border:2px solid var(--line);border-radius:18px;background:var(--panel);
+    color:#fff;cursor:pointer;min-height:120px;text-align:left;transition:transform .15s,border-color .15s}
+  .rcard:hover,.rcard:focus-visible{transform:scale(1.03);border-color:var(--gold)}
+  .rcard .no{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);font-weight:800}
+  .rcard .tt{display:block;font-weight:800;font-size:clamp(16px,1.9vw,20px);margin-top:8px;line-height:1.2}
+  .rcard .st{position:absolute;left:16px;bottom:14px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;
+    padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.1);border:1px solid var(--line)}
+  .rcard .st.today{background:var(--gold);color:#2a1300}
+  .rcard .st.done{background:rgba(34,201,122,.25);color:#9ff5cb;border-color:var(--green)}
+  .rcard .st.part{background:rgba(255,79,154,.25);color:#ffc0dc;border-color:var(--pink)}
+  .rcard.is-today{border-color:rgba(255,200,61,.7)}
+  .archive-foot{margin-top:36px;display:flex;justify-content:center}
+
+  /* ---------- Misc ---------- */
+  #soundBtn{position:fixed;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));z-index:20;
+    width:52px;height:52px;min-height:0;padding:0;border-radius:50%;font-size:21px}
+  #copyright{position:fixed;left:0;right:0;bottom:0;z-index:30;background:linear-gradient(transparent,rgba(13,6,34,.85) 45%);text-align:center;font-size:clamp(10px,1.3vw,13px);
+    color:rgba(255,255,255,.6);padding:8px 12px calc(env(safe-area-inset-bottom) + 8px);pointer-events:none}
+  #loader{position:fixed;inset:0;display:grid;place-items:center;align-content:center;gap:22px;background:var(--bg1);z-index:9999;
+    transition:opacity .5s;padding:24px;text-align:center}
+  #loader.hide{opacity:0;pointer-events:none}
+  .ring{width:clamp(80px,14vw,130px);height:clamp(80px,14vw,130px);border-radius:50%;border:6px solid rgba(255,200,61,.18);
+    border-top-color:var(--gold);border-right-color:var(--pink);animation:spin 1s linear infinite}
+  .loading-text{letter-spacing:.24em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .load-error{max-width:620px;line-height:1.6}
+  .load-error b{color:var(--gold);display:block;font-size:22px;margin-bottom:8px}
+  .load-error code{background:rgba(255,255,255,.1);padding:2px 6px;border-radius:5px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .confetti{position:absolute;top:-20px;width:12px;height:18px;z-index:50;pointer-events:none;animation:fall linear forwards}
+  @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+
+  /* ---------- Responsive ---------- */
+  @media (max-width:700px){
+    .options{grid-template-columns:1fr}
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .actions{grid-template-columns:1fr;gap:20px}
+    .archive-grid{grid-template-columns:1fr;gap:20px}
+    .options{gap:16px}
+    .actions-col{gap:24px}
+    #soundBtn{width:44px;height:44px;font-size:18px}
+  }
+  /* Short landscape phones: tighten vertical space */
+  @media (max-height:500px) and (orientation:landscape){
+    .logo{max-height:9vh}
+    .opt{min-height:46px}
+    .brand .l2{font-size:clamp(30px,6vw,60px)}
+    .datestamp{margin-top:10px}
+  }
+  /* Smart TVs / big screens: overscan-safe padding, bigger targets */
+  @media (min-width:1600px){
+    .screen{padding:5vh 6vw 7vh}
+    .wrap{width:min(1500px,100%)}
+    .btn{min-height:68px;font-size:22px}
+    .opt{min-height:12vh}
+    .actions{gap:48px}
+    .options{gap:40px}
+    .actions-col{gap:40px}
+  }
+  @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div id="fx">
+<div id="bg"></div>
+<div class="spot a"></div><div class="spot b"></div>
+<!-- Background video: cinema.mp4 sits beside this file. Always muted, looping, 25% visible. -->
+<!-- Optional: add cinema_mobile.mp4 (smaller, e.g. 720p) and phones will use it automatically. -->
+<video id="bgVideo" autoplay muted loop playsinline webkit-playsinline x5-playsinline preload="metadata"
+       disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback"
+       aria-hidden="true" tabindex="-1"></video>
+</div>
+<div id="confettiLayer"></div>
+<!-- Optional: background music. Hidden automatically if missing. -->
+<audio id="bgm" loop muted preload="auto"><source src="trivia_music.mp3" type="audio/mpeg"></audio>
+<button id="soundBtn" class="btn" type="button" aria-label="Toggle music">&#9835;</button>
+
+<div id="loader" role="status" aria-live="polite">
+  <div class="ring"></div>
+  <div class="loading-text">Rolling the film&hellip;</div>
+</div>
+
+<div id="app">
+<!-- ============ LANDING ============ -->
+<section id="landing" class="screen">
+  <main class="wrap">
+    <img class="logo" src="logo_white.png" alt="" onerror="this.style.display='none'">
+    <h1 class="brand"><span class="l2">Movie</span><span class="l3">Trivia</span></h1>
+    <p class="datestamp" id="landingDate"></p>
+    <div class="theme-pill" id="landingTheme"></div>
+    <p class="tagline" id="landingTag">10 questions. 4 options. A new round every day.</p>
+    <div class="stats">
+      <div class="stat"><b id="statStreak">0</b><span>Streak</span></div>
+      <div class="stat"><b id="statBest">0</b><span>Best streak</span></div>
+      <div class="stat"><b id="statPerfect">0</b><span>Perfect 10s</span></div>
+      <div class="stat"><b id="statAvg">0</b><span>Avg score</span></div>
+    </div>
+    <div class="actions-col">
+      <button id="startBtn" class="btn primary btn-lg" type="button">Play today's round</button>
+      <button id="replayBtn" class="btn pink btn-lg" type="button" hidden>Play again</button>
+      <button id="landingArchiveBtn" class="btn ghost" type="button">Previous rounds</button>
+    </div>
+  </main>
+</section>
+
+<!-- ============ GAME ============ -->
+<section id="game" class="screen hidden-right">
+  <main class="wrap">
+    <div class="archive-flag" id="archiveFlag"></div>
+    <div class="topbar">
+      <div><div class="round-sub" id="roundSub"></div><div class="round-name" id="roundName"></div></div>
+      <div class="score" id="scoreBox">0<small>Points</small></div>
+    </div>
+    <div class="dots" id="dots"></div>
+    <div class="timebar"><i id="timeFill"></i></div>
+    <div id="playArea"></div>
+  </main>
+</section>
+
+<!-- ============ ARCHIVE ============ -->
+<section id="archive" class="screen hidden-right">
+  <main class="wrap">
+    <div class="archive-head">
+      <h2>Previous Rounds</h2>
+      <p>Catch up on any round you missed. Archive rounds don't affect your streak.</p>
+    </div>
+    <div class="archive-grid" id="archiveGrid"></div>
+    <div class="archive-foot"><button id="arcHomeBtn" class="btn" type="button">Back to home</button></div>
+  </main>
+</section>
+</div>
+
+<footer id="copyright">&copy; <span id="year"></span> NBCUniversal &middot; A new round every day</footer>
+
+<script>
+/* ======================================================================
+   STUDIO UNIVERSAL MOVIE TRIVIA - daily round game
+   - Rounds load from DATA_URL: {"themes":[{"theme":"..","questions":[[q,a,b,c,d,answer1to4],..]}]}
+   - Day 1 = START_DATE, one themed round per day, wrapping after the last.
+   - Progress, scores and streak saved in localStorage. Mid-round progress
+     is saved too, so a round can't be restarted for a better score.
+   ====================================================================== */
+const DATA_URL   = 'movietrivia_fixed.json';
+const START_DATE = '2026-10-15';
+const STORE_KEY  = 'sumt.v1';
+const SECONDS    = 20;           // time per question
+const BASE_PTS   = 100;          // points for a correct answer
+const SPEED_PTS  = 100;          // max bonus for answering fast
+
+/* ---------- Dates (local midnight, no UTC drift) ---------- */
+const MS_DAY = 86400000;
+const localMidnight = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+const parseISO = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1]-1, p[2]).getTime(); };
+const toISO = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const dayNumberFor = d => Math.floor((localMidnight(d) - parseISO(START_DATE)) / MS_DAY) + 1;
+const dateForDay = n => new Date(parseISO(START_DATE) + (n-1) * MS_DAY);
+const isoForDay  = n => toISO(dateForDay(n));
+const roundForDay = n => rounds[((n-1) % rounds.length + rounds.length) % rounds.length];
+const longDate = d => d.toLocaleDateString(undefined, { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+/* ---------- Storage ---------- */
+const blankStore = () => ({ results:{}, progress:{}, streak:0, best:0, lastPlayedISO:null, muted:false });
+function loadStore(){
+  try{ const raw = localStorage.getItem(STORE_KEY); return raw ? Object.assign(blankStore(), JSON.parse(raw)) : blankStore(); }
+  catch(e){ return blankStore(); }
+}
+function saveStore(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){} }
+function displayStreak(){
+  if(!store.lastPlayedISO) return 0;
+  const y = toISO(new Date(parseISO(todayISO) - MS_DAY));
+  return (store.lastPlayedISO === todayISO || store.lastPlayedISO === y) ? store.streak : 0;
+}
+
+/* ---------- State ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = new Date(), todayISO = toISO(today);
+let store = loadStore(), rounds = [], todayDay = 1;
+let active = null;               // { day, iso, isToday, round, answers:[{pick,correct,pts}] }
+let qIndex = 0, qStart = 0, timerRaf = null, locked = false, countdownId = null, autoNext = null;
+const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+function softFocus(el){ if(!el || isTouch) return; try{ el.focus({ preventScroll:true }); }catch(e){} }
+function toTop(el){ if(!el) return; el.scrollTop = 0; setTimeout(() => { el.scrollTop = 0; }, 150); setTimeout(() => { el.scrollTop = 0; }, 450); }
+
+/* ---------- Load data ---------- */
+async function loadRounds(){
+  const res = await fetch(DATA_URL, { cache:'no-cache' });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  const list = (data.themes || []).filter(t => Array.isArray(t.questions) && t.questions.length);
+  if(!list.length) throw new Error('No rounds found');
+  return list;
+}
+function showLoadError(err){
+  $('#loader').innerHTML = '<div class="load-error"><b>Trivia unavailable</b>Could not load <code>' + esc(DATA_URL) +
+    '</code> (' + esc(err.message) + ').<br><br>Put the JSON file in the same folder as this page and open it over ' +
+    '<code>http://</code>, not <code>file://</code>. Quick local server: <code>python -m http.server</code></div>';
+}
+
+/* ---------- Stats ---------- */
+function allResults(){ return Object.keys(store.results).map(k => store.results[k]); }
+function paintLanding(){
+  const r = allResults();
+  $('#landingDate').textContent = longDate(today);
+  $('#landingTheme').textContent = '\u{1F3AC} Today: ' + roundForDay(todayDay).theme;
+  $('#statStreak').textContent = displayStreak();
+  $('#statBest').textContent = store.best;
+  $('#statPerfect').textContent = r.filter(x => x.correct === x.total).length;
+  $('#statAvg').textContent = r.length ? (r.reduce((a,x) => a + x.correct, 0) / r.length).toFixed(1) : '0';
+  const done = store.results[todayISO], part = store.progress[todayISO];
+  $('#replayBtn').hidden = !done;
+  if(done){
+    $('#startBtn').textContent = 'See today\u2019s score';
+    $('#landingTag').textContent = 'You scored ' + done.correct + '/' + done.total + ' today. A new round drops at midnight!';
+  }else if(part){
+    $('#startBtn').textContent = 'Continue today\u2019s round';
+    $('#landingTag').textContent = 'You\u2019re part way through \u2014 jump back in!';
+  }else{
+    $('#startBtn').textContent = 'Play today\u2019s round';
+    $('#landingTag').textContent = '10 questions. 4 options. A new round every day.';
+  }
+}
+
+/* ---------- Screens ---------- */
+function show(id){
+  ['landing','game','archive'].forEach(s => {
+    const el = $('#' + s);
+    el.classList.remove('hidden-left','hidden-right');
+    if(s !== id) el.classList.add(s === 'landing' ? 'hidden-left' : 'hidden-right');
+  });
+  toTop($('#' + id));
+}
+
+/* ---------- Round flow ---------- */
+/* practice = true replays a finished round just for fun. Nothing is saved,
+   so the official score, streak and stats are never changed. */
+function openDay(n, practice){
+  clearInterval(countdownId);
+  const iso = isoForDay(n);
+  practice = !!practice && !!store.results[iso];
+  active = { day:n, iso:iso, isToday:n === todayDay, round:roundForDay(n), practice:practice,
+             answers:practice ? [] : (store.progress[iso] || []).slice() };
+  $('#roundName').textContent = active.round.theme;
+  $('#roundSub').textContent = 'Round ' + String(n).padStart(3,'0') + (practice ? ' \u00B7 Replay' : '');
+  const flag = $('#archiveFlag');
+  flag.classList.toggle('on', practice || !active.isToday);
+  flag.classList.toggle('practice', practice);
+  flag.textContent = practice
+    ? '\u{1F501} Replay \u00B7 just for fun \u00B7 your saved score of ' + store.results[iso].correct + '/' + store.results[iso].total + ' stays the same'
+    : active.isToday ? '' : '\u{1F4FC} Archive round \u00B7 ' + longDate(dateForDay(n)) + ' \u00B7 doesn\u2019t affect your streak';
+  show('game');
+  if(practice){ qIndex = 0; showQuestion(); }
+  else if(store.results[iso]){ active.answers = store.results[iso].answers; showResults(); }
+  else { qIndex = active.answers.length; if(qIndex >= active.round.questions.length) finishRound(); else showQuestion(); }
+}
+
+function paintDots(){
+  $('#dots').innerHTML = active.round.questions.map((_, i) => {
+    const a = active.answers[i];
+    return '<span class="dot' + (a ? (a.correct ? ' ok' : ' bad') : (i === qIndex ? ' now' : '')) + '"></span>';
+  }).join('');
+  const pts = active.answers.reduce((s, a) => s + a.pts, 0);
+  $('#scoreBox').innerHTML = pts + '<small>Points</small>';
+}
+
+function showQuestion(){
+  locked = false;
+  const q = active.round.questions[qIndex];
+  paintDots();
+  $('.timebar').style.visibility = 'visible';
+  $('#playArea').innerHTML =
+    '<div class="qcard"><div class="qnum">Question ' + (qIndex+1) + ' of ' + active.round.questions.length + '</div>' +
+    '<p class="qtext">' + esc(q[0]) + '</p></div>' +
+    '<div class="options">' + [1,2,3,4].map(i =>
+      '<button class="opt" type="button" data-i="' + i + '"><span class="key">' + 'ABCD'[i-1] + '</span>' + esc(q[i]) + '</button>').join('') +
+    '</div><div class="feedback" id="feedback"></div><div class="nextrow" id="nextRow"></div>';
+  document.querySelectorAll('.opt').forEach(b => b.addEventListener('click', () => answer(Number(b.dataset.i))));
+  toTop($('#game'));
+  setTimeout(() => softFocus(document.querySelector('.opt')), 250);
+  startTimer();
+}
+
+function startTimer(){
+  cancelAnimationFrame(timerRaf);
+  qStart = performance.now();
+  const fill = $('#timeFill');
+  const tick = now => {
+    const left = Math.max(0, 1 - (now - qStart) / (SECONDS * 1000));
+    fill.style.transform = 'scaleX(' + left + ')';
+    if(left <= 0){ answer(0); return; }
+    if(!locked) timerRaf = requestAnimationFrame(tick);
+  };
+  timerRaf = requestAnimationFrame(tick);
+}
+
+const CHEERS = ['Nailed it!','Blockbuster!','Box office gold!','Oscar-worthy!','Superstar!','That\u2019s a wrap!','Bravo!'];
+const OOPS   = ['Plot twist!','Cut! Not quite.','Missed the cue!','Close, but no Oscar!','Back to the script!'];
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+function answer(choice){
+  if(locked) return;
+  locked = true;
+  cancelAnimationFrame(timerRaf);
+  const q = active.round.questions[qIndex], right = Number(q[5]);
+  const used = Math.min(1, (performance.now() - qStart) / (SECONDS * 1000));
+  const correct = choice === right;
+  const pts = correct ? BASE_PTS + Math.round(SPEED_PTS * (1 - used)) : 0;
+  active.answers.push({ pick:choice, correct:correct, pts:pts });
+  if(!active.practice){ store.progress[active.iso] = active.answers; saveStore(); }
+
+  document.querySelectorAll('.opt').forEach(b => {
+    const i = Number(b.dataset.i);
+    b.disabled = true;
+    if(i === right) b.classList.add('right');
+    else if(i === choice) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+  const fb = $('#feedback');
+  fb.className = 'feedback ' + (correct ? 'ok' : 'bad');
+  fb.textContent = correct ? pick(CHEERS) + ' +' + pts : (choice === 0 ? 'Time\u2019s up! ' : pick(OOPS) + ' ') + 'It was ' + q[right] + '.';
+  paintDots();
+
+  const last = qIndex === active.round.questions.length - 1;
+  $('#nextRow').innerHTML = '<button id="nextBtn" class="btn primary btn-lg" type="button">' + (last ? 'See my score' : 'Next question') + '</button>';
+  $('#nextBtn').addEventListener('click', next);
+  softFocus($('#nextBtn'));
+}
+
+function next(){
+  clearTimeout(autoNext);
+  qIndex++;
+  if(qIndex >= active.round.questions.length) finishRound(); else showQuestion();
+}
+
+function finishRound(){
+  const ans = active.answers, total = active.round.questions.length;
+  const correct = ans.filter(a => a.correct).length, points = ans.reduce((s, a) => s + a.pts, 0);
+  if(active.practice){
+    active.practiceResult = { answers:ans, correct:correct, total:total, points:points };
+    showResults();
+    if(correct === total) confetti();
+    return;
+  }
+  if(!store.results[active.iso]){
+    if(active.isToday){
+      const y = toISO(new Date(parseISO(active.iso) - MS_DAY));
+      store.streak = (store.lastPlayedISO === y) ? store.streak + 1 : 1;
+      store.best = Math.max(store.best, store.streak);
+      store.lastPlayedISO = active.iso;
+    }
+    store.results[active.iso] = { round:active.round.theme, answers:ans, correct:correct, total:total, points:points, archive:!active.isToday };
+    delete store.progress[active.iso];
+    saveStore();
+  }
+  showResults();
+  if(correct === total) confetti();
+}
+
+function showResults(){
+  cancelAnimationFrame(timerRaf);
+  const saved = store.results[active.iso];
+  const r = active.practice && active.practiceResult ? active.practiceResult : saved;
+  qIndex = r.total;
+  paintDots();
+  $('.timebar').style.visibility = 'hidden';
+  const stars = r.correct >= 10 ? 5 : r.correct >= 8 ? 4 : r.correct >= 6 ? 3 : r.correct >= 4 ? 2 : 1;
+  const verdict = ['', 'Every star starts somewhere!', 'A solid supporting role!', 'Fresh on the critics\u2019 list!',
+                   'Box office smash!', 'PERFECT! Hollywood legend!'][stars];
+  const review = active.round.questions.map((q, i) => {
+    const a = r.answers[i] || { pick:0, correct:false };
+    return '<div>' + (a.correct ? '<span class="t">\u2714</span> ' : '<span class="x">\u2718</span> ') + esc(q[0]) +
+      ' <b>' + esc(q[Number(q[5])]) + '</b></div>';
+  }).join('');
+  const streak = displayStreak();
+  const banner = active.practice
+    ? '\u{1F501} Replay score \u00B7 your saved score is still ' + saved.correct + '/' + saved.total + ' (' + saved.points + ' pts)'
+    : active.isToday
+    ? '\u{1F525} Streak: ' + streak + (streak === 1 ? ' day' : ' days') + ' \u00B7 Best: ' + store.best
+    : '\u{1F4FC} Archive round \u00B7 streak untouched';
+  $('#playArea').innerHTML =
+    '<div class="result-card">' +
+      '<div class="big-score">' + r.correct + '/' + r.total + '</div>' +
+      '<div class="stars">' + '\u2B50'.repeat(stars) + '<span style="opacity:.25">' + '\u2B50'.repeat(5 - stars) + '</span></div>' +
+      '<div class="verdict">' + verdict + '</div>' +
+      '<div class="points">' + r.points + ' points</div>' +
+      '<div class="banner">' + banner + '</div>' +
+      '<div class="actions">' +
+        '<button id="shareBtn" class="btn pink" type="button">Share score</button>' +
+        '<button id="againBtn" class="btn" type="button">\u{1F501} Play again</button>' +
+        '<button id="arcBtn" class="btn" type="button">Previous rounds</button>' +
+        '<button id="homeBtn" class="btn primary" type="button">Home</button>' +
+      '</div>' +
+      '<div class="review">' + review + '</div>' +
+      (active.isToday && !active.practice ? '<p class="next-in">Next round in <span id="countdown">--:--:--</span></p>' : '') +
+    '</div>';
+  $('#shareBtn').addEventListener('click', share);
+  $('#againBtn').addEventListener('click', () => openDay(active.day, true));
+  $('#arcBtn').addEventListener('click', openArchive);
+  $('#homeBtn').addEventListener('click', goHome);
+  if(active.isToday && !active.practice) startCountdown();
+  toTop($('#game'));
+  setTimeout(() => softFocus($('#shareBtn')), 300);
+}
+
+/* ---------- Share (works on https, http and file://) ---------- */
+async function share(){
+  const r = store.results[active.iso];   // always the official (first) score
+  const grid = r.answers.map(a => a.correct ? '\u{1F7E9}' : '\u{1F7E5}').join('');
+  const text = 'Studio Universal Movie Trivia #' + active.day + '\n' + active.round.theme + '\n' +
+               r.correct + '/' + r.total + ' \u00B7 ' + r.points + ' pts\n' + grid +
+               (active.isToday ? '\n\u{1F525} Streak: ' + displayStreak() : '');
+  const web = /^https?:$/.test(location.protocol);
+  const payload = web ? text + '\n' + location.href : text;
+  if(navigator.share && web){
+    try{ await navigator.share({ title:'Studio Universal Movie Trivia', text:text, url:location.href }); return; }
+    catch(e){ if(e.name === 'AbortError') return; }
+  }
+  if(navigator.clipboard && window.isSecureContext){
+    try{ await navigator.clipboard.writeText(payload); flash('Copied!'); return; }catch(e){}
+  }
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = payload; ta.setAttribute('readonly','');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, payload.length);
+    const ok = document.execCommand('copy'); document.body.removeChild(ta);
+    if(ok){ flash('Copied!'); return; }
+  }catch(e){}
+  window.prompt('Copy your score:', payload);
+}
+function flash(msg){ const b = $('#shareBtn'); if(!b) return; b.textContent = msg;
+  setTimeout(() => { const s = $('#shareBtn'); if(s) s.textContent = 'Share score'; }, 2200); }
+
+/* ---------- Countdown ---------- */
+function startCountdown(){
+  clearInterval(countdownId);
+  const tick = () => {
+    const now = new Date(), diff = Math.max(0, localMidnight(now) + MS_DAY - now.getTime());
+    const el = $('#countdown');
+    if(el) el.textContent = [diff/3600000, diff%3600000/60000, diff%60000/1000].map(n => String(Math.floor(n)).padStart(2,'0')).join(':');
+    if(diff === 0) location.reload();
+  };
+  tick(); countdownId = setInterval(tick, 1000);
+}
+
+/* ---------- Confetti ---------- */
+function confetti(){
+  const cols = ['#ffc83d','#ff4f9a','#33d6ff','#22c97a','#9b7bff'];
+  for(let i = 0; i < 90; i++){
+    const c = document.createElement('i');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + '%';
+    c.style.background = cols[i % cols.length];
+    c.style.animationDuration = (2.5 + Math.random() * 2.5) + 's';
+    c.style.animationDelay = Math.random() * .8 + 's';
+    $('#confettiLayer').appendChild(c);
+    setTimeout(() => c.remove(), 6000);
+  }
+}
+
+/* ---------- Archive ---------- */
+function openArchive(){
+  clearInterval(countdownId); cancelAnimationFrame(timerRaf);
+  const cards = [];
+  for(let n = todayDay; n >= 1; n--){
+    const iso = isoForDay(n), done = store.results[iso], part = store.progress[iso], isT = n === todayDay;
+    let cls = '', label = 'Play now';
+    if(done){ cls = 'done'; label = done.correct + '/' + done.total + ' \u00B7 ' + done.points + ' pts'; }
+    else if(part){ cls = 'part'; label = 'In progress'; }
+    else if(isT){ cls = 'today'; label = 'Today\u2019s round'; }
+    cards.push('<button class="rcard' + (isT ? ' is-today' : '') + '" type="button" data-day="' + n + '">' +
+      '<span class="no">Round ' + String(n).padStart(3,'0') + ' \u00B7 ' +
+        esc(dateForDay(n).toLocaleDateString(undefined, { day:'numeric', month:'short', year:'numeric' })) + '</span>' +
+      '<span class="tt">' + esc(roundForDay(n).theme) + '</span>' +
+      '<span class="st ' + cls + '">' + label + '</span></button>');
+  }
+  $('#archiveGrid').innerHTML = cards.join('');
+  document.querySelectorAll('.rcard').forEach(b => b.addEventListener('click', () => openDay(Number(b.dataset.day))));
+  show('archive');
+  setTimeout(() => softFocus(document.querySelector('.rcard')), 450);
+}
+
+function goHome(){
+  clearInterval(countdownId); cancelAnimationFrame(timerRaf);
+  paintLanding(); show('landing');
+  setTimeout(() => softFocus($('#startBtn')), 450);
+}
+
+/* ---------- Keyboard / TV remote ----------
+   A-D or 1-4 answer; Enter/OK activates focus; arrows move focus spatially. */
+document.addEventListener('keydown', e => {
+  const onGame = !$('#game').classList.contains('hidden-right') && !$('#game').classList.contains('hidden-left');
+  if(onGame && !locked && document.querySelector('.opt')){
+    const map = { a:1, b:2, c:3, d:4, '1':1, '2':2, '3':3, '4':4 };
+    const k = map[String(e.key).toLowerCase()];
+    if(k){ e.preventDefault(); answer(k); return; }
+  }
+  if(['Backspace','Escape','BrowserBack','GoBack'].indexOf(e.key) !== -1 && !onGame){
+    if($('#landing').classList.contains('hidden-left')){ e.preventDefault(); goHome(); }
+    return;
+  }
+  const dirs = { ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0] };
+  const d = dirs[e.key]; if(!d) return;
+  const items = [].slice.call(document.querySelectorAll(
+    '.screen:not(.hidden-left):not(.hidden-right) button:not(:disabled), #soundBtn'))
+    .filter(el => el.offsetParent !== null);
+  if(!items.length) return;
+  e.preventDefault();
+  const cur = document.activeElement;
+  if(items.indexOf(cur) === -1){ focusItem(items[0]); return; }
+  const c = cur.getBoundingClientRect(), cx = c.left + c.width/2, cy = c.top + c.height/2;
+  let best = null, bestScore = Infinity;
+  items.forEach(el => {
+    if(el === cur) return;
+    const r = el.getBoundingClientRect(), dx = (r.left + r.width/2) - cx, dy = (r.top + r.height/2) - cy;
+    const along = dx * d[0] + dy * d[1];
+    if(along <= 1) return;
+    const across = Math.abs(dx * d[1]) + Math.abs(dy * d[0]);
+    const score = along + across * 2.5;
+    if(score < bestScore){ bestScore = score; best = el; }
+  });
+  if(best) focusItem(best);
+});
+function focusItem(el){ try{ el.focus({ preventScroll:true }); }catch(e){ el.focus(); }
+  if(el.scrollIntoView) el.scrollIntoView({ block:'nearest', behavior:'smooth' }); }
+
+/* ---------- Video + music (optional assets) ---------- */
+const bgv = $('#bgVideo'), bgm = $('#bgm');
+/* ---------- Background video (mobile-friendly) ----------
+   - iOS/Android only autoplay if the video is muted + inline BEFORE the source
+     loads, so those flags are set in JS first and the src is added after.
+   - Phones/tablets use cinema_mobile.mp4 if it exists (smaller = smoother,
+     less data); otherwise they fall back to cinema.mp4.
+   - It fades in only once it is actually playing, so a blocked or slow video
+     never shows a frozen frame or a play button - the gradient shows instead.
+   - Restarts after pauses/stalls, when the tab/app comes back, on rotation,
+     on the first touch/key (iOS Low Power Mode), and on a light watchdog. */
+const VIDEO_DESKTOP = 'cinema.mp4';
+const VIDEO_MOBILE  = 'cinema_mobile.mp4';
+const smallScreen = Math.min(screen.width, screen.height) <= 820 || isTouch;
+const conn = navigator.connection || {};
+['muted','playsinline','webkit-playsinline','loop','autoplay'].forEach(a => bgv.setAttribute(a, ''));
+bgv.muted = true; bgv.defaultMuted = true; bgv.volume = 0; bgv.loop = true; bgv.playsInline = true;
+if(!smallScreen && !conn.saveData) bgv.preload = 'auto';
+
+let triedFallback = false;
+function setVideoSrc(url){ bgv.src = url; bgv.load(); kickVideo(); }
+bgv.addEventListener('error', () => {
+  if(!triedFallback && bgv.getAttribute('src') !== VIDEO_DESKTOP){ triedFallback = true; setVideoSrc(VIDEO_DESKTOP); }
+  else bgv.classList.remove('playing');
+});
+function kickVideo(){
+  if(!bgv.isConnected || document.hidden || !bgv.getAttribute('src')) return;
+  bgv.muted = true;
+  if(bgv.paused || bgv.ended){ const p = bgv.play(); if(p && p.catch) p.catch(() => {}); }
+}
+bgv.addEventListener('playing', () => bgv.classList.add('playing'));
+['loadeddata','canplay','pause','stalled','ended'].forEach(ev => bgv.addEventListener(ev, kickVideo));
+bgv.addEventListener('volumechange', () => { if(!bgv.muted) bgv.muted = true; });
+document.addEventListener('visibilitychange', () => { if(document.hidden) bgv.pause(); else kickVideo(); });
+window.addEventListener('pageshow', kickVideo);
+window.addEventListener('focus', kickVideo);
+window.addEventListener('orientationchange', () => setTimeout(kickVideo, 400));
+['pointerdown','touchend','keydown','click'].forEach(ev => window.addEventListener(ev, kickVideo, { passive:true }));
+setInterval(kickVideo, 4000);
+setVideoSrc(smallScreen ? VIDEO_MOBILE : VIDEO_DESKTOP);
+
+let hasMusic = true, musicOn = !store.muted;
+bgm.volume = 0.3;
+bgm.querySelector('source').addEventListener('error', () => { hasMusic = false; $('#soundBtn').style.display = 'none'; });
+function paintSound(){ $('#soundBtn').innerHTML = musicOn ? '&#9835;' : '&#128263;'; }
+function startMusic(){ if(!hasMusic || !musicOn) return; bgm.muted = false; const p = bgm.play(); if(p && p.catch) p.catch(() => {}); }
+['pointerdown','keydown','touchstart'].forEach(ev => window.addEventListener(ev, startMusic, { passive:true, once:true }));
+$('#soundBtn').addEventListener('click', e => {
+  e.stopPropagation(); musicOn = !musicOn; store.muted = !musicOn; saveStore();
+  if(musicOn) startMusic(); else bgm.pause();
+  paintSound();
+});
+
+
+/* ---------- Fit-to-screen guard (mobile + TV) ----------
+   Keeps the page exactly the size of the visible screen, follows the mobile
+   address bar / rotation, and blocks pinch and double-tap zoom (iOS ignores
+   the viewport tag for those). */
+function fitScreen(){
+  const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  document.documentElement.style.setProperty('--app-h', Math.round(h) + 'px');
+  if(window.scrollX || window.scrollY) window.scrollTo(0, 0);
+}
+fitScreen();
+['resize','orientationchange','pageshow'].forEach(ev => window.addEventListener(ev, () => { fitScreen(); setTimeout(fitScreen, 300); }));
+if(window.visualViewport) visualViewport.addEventListener('resize', fitScreen);
+['gesturestart','gesturechange','gestureend'].forEach(ev => document.addEventListener(ev, e => e.preventDefault(), { passive:false }));
+document.addEventListener('touchmove', e => { if(e.touches && e.touches.length > 1) e.preventDefault(); }, { passive:false });
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if(now - lastTouchEnd < 350 && !e.target.closest('button,a')) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive:false });
+/* ---------- Boot ---------- */
+$('#year').textContent = new Date().getFullYear();
+paintSound();
+loadRounds().then(list => {
+  rounds = list;
+  todayDay = Math.max(1, dayNumberFor(today));
+  paintLanding();
+  $('#startBtn').addEventListener('click', () => openDay(todayDay));
+  $('#replayBtn').addEventListener('click', () => openDay(todayDay, true));
+  $('#landingArchiveBtn').addEventListener('click', openArchive);
+  $('#arcHomeBtn').addEventListener('click', goHome);
+  setTimeout(() => { $('#loader').classList.add('hide'); setTimeout(() => softFocus($('#startBtn')), 350); }, 400);
+}).catch(showLoadError);
+</script>
+</body>
+</html>

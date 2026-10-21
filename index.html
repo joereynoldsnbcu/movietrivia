@@ -4,8 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="format-detection" content="telephone=no">
-<title>Studio Universal Movie Trivia</title>
-<!-- v5: mobile zoom fix, footer always visible, everything clipped to the screen. v4: mobile-friendly video, Play again (practice) mode, more button spacing. v3: cinema.mp4 background video. v2: smaller buttons, wider spacing, no "Studio Universal" heading, smaller logo -->
+<title>7Bravo Movie Club: Movie Trivia</title>
+<!-- v7: music button and music code removed.
+     v6: anti-flicker rework with automatic fallbacks (lite mode, video watchdog, seamless loop).
+     v5: mobile zoom fix, footer always visible. v4: mobile video, Play again, spacing.
+     v3: cinema.mp4 background. v2: smaller buttons, no "Studio Universal" heading, smaller logo. -->
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -14,7 +17,7 @@
   :root{
     --bg1:#1b0f3b;--bg2:#2b1166;--bg3:#0d3b7a;
     --gold:#ffc83d;--pink:#ff4f9a;--cyan:#33d6ff;--green:#22c97a;--red:#ff5a5a;
-    --white:#fff;--muted:#c9c3e6;--panel:rgba(20,10,48,.72);--line:rgba(255,255,255,.2);
+    --white:#fff;--muted:#c9c3e6;--panel:rgba(20,10,48,.78);--line:rgba(255,255,255,.2);
   }
   *{box-sizing:border-box}
   [hidden]{display:none!important}
@@ -23,53 +26,48 @@
     font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
     -webkit-text-size-adjust:100%;text-size-adjust:100%;
     touch-action:manipulation;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
-  /* Lock the page to exactly the visible screen (follows mobile address bars). */
-  body{position:fixed;inset:0;width:100%;height:100%;height:var(--app-h,100dvh)}
-  button{touch-action:manipulation}
-  /* Every layer below is clipped to the screen so nothing can widen the page. */
-  #fx{position:fixed;inset:0;overflow:hidden;z-index:-1;pointer-events:none;contain:strict}
-  #app{position:absolute;inset:0;overflow:hidden}
-  #confettiLayer{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:50}
+  /* Page is locked to the visible screen. 100dvh where supported; JS fallback sets --app-h. */
+  body{position:fixed;inset:0;width:100%;height:100%;height:var(--app-h,100%)}
+  @supports (height:100dvh){ body{height:var(--app-h,100dvh)} }
   button,a{font:inherit}
+  button{touch-action:manipulation}
   button:focus-visible,a:focus-visible{outline:4px solid var(--gold);outline-offset:4px}
 
-  /* ---------- Background ---------- */
-  #bg{position:absolute;inset:0;z-index:-3;
-    background:radial-gradient(circle at 15% 20%,rgba(255,79,154,.35),transparent 45%),
-               radial-gradient(circle at 85% 75%,rgba(51,214,255,.30),transparent 50%),
+  /* ---------- Background (static: no blur, no moving layers) ---------- */
+  #fx{position:fixed;inset:0;overflow:hidden;z-index:0;pointer-events:none;contain:strict;
+    transform:translateZ(0);-webkit-transform:translateZ(0)}
+  #bg{position:absolute;inset:0;
+    background:radial-gradient(circle at 15% 20%,rgba(255,79,154,.30),transparent 45%),
+               radial-gradient(circle at 85% 75%,rgba(51,214,255,.25),transparent 50%),
                linear-gradient(135deg,var(--bg1),var(--bg2) 55%,var(--bg3))}
   #bgVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;
-    opacity:0;z-index:-2;pointer-events:none;transform:translateZ(0);-webkit-transform:translateZ(0);
-    backface-visibility:hidden;transition:opacity 1.2s ease;background:transparent}
+    opacity:0;pointer-events:none;background:transparent;transition:opacity 1s ease}
   #bgVideo.playing{opacity:.25}
   #bgVideo::-webkit-media-controls,#bgVideo::-webkit-media-controls-start-playback-button{display:none!important;-webkit-appearance:none}
-  .spot{position:absolute;width:60vmax;height:60vmax;border-radius:50%;z-index:-1;filter:blur(60px);opacity:.25;
-    animation:drift 18s ease-in-out infinite alternate;pointer-events:none}
-  .spot.a{background:var(--pink);top:-30vmax;left:-20vmax}
-  .spot.b{background:var(--cyan);bottom:-30vmax;right:-20vmax;animation-delay:-9s}
-  @keyframes drift{to{transform:translate(10vmax,8vmax)}}
+  html.novideo #bgVideo{display:none}
+
+  #app{position:absolute;inset:0;overflow:hidden;z-index:1}
+  #confettiLayer{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:50}
 
   /* ---------- Screens ---------- */
   .screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     padding:max(20px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right))
-            max(48px,calc(env(safe-area-inset-bottom) + 36px)) max(20px,env(safe-area-inset-left));
+            max(52px,calc(env(safe-area-inset-bottom) + 40px)) max(20px,env(safe-area-inset-left));
     overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overflow-anchor:none;overscroll-behavior:contain;
-    transition:transform .6s cubic-bezier(.22,.8,.25,1),opacity .4s}
-  .hidden-left{transform:translateX(-105%);opacity:0;pointer-events:none;visibility:hidden}
-  .hidden-right{transform:translateX(105%);opacity:0;pointer-events:none;visibility:hidden}
-  .screen{transition:transform .6s cubic-bezier(.22,.8,.25,1),opacity .4s,visibility 0s linear 0s}
-  .hidden-left,.hidden-right{transition:transform .6s cubic-bezier(.22,.8,.25,1),opacity .4s,visibility 0s linear .6s}
-  .wrap,.qtext,.opt,.review div,.rcard .tt,.theme-pill,.tagline{overflow-wrap:anywhere;word-break:normal;max-width:100%}
+    transition:transform .5s cubic-bezier(.22,.8,.25,1),opacity .35s,visibility 0s linear 0s}
+  .hidden-left,.hidden-right{opacity:0;pointer-events:none;visibility:hidden;
+    transition:transform .5s cubic-bezier(.22,.8,.25,1),opacity .35s,visibility 0s linear .5s}
+  .hidden-left{transform:translateX(-105%)}
+  .hidden-right{transform:translateX(105%)}
   .wrap{width:min(1000px,100%);margin:auto;text-align:center}
+  .wrap,.qtext,.opt,.review div,.rcard .tt,.theme-pill,.tagline{overflow-wrap:anywhere;word-break:normal;max-width:100%}
 
   /* ---------- Landing ---------- */
   .logo{display:block;max-width:min(260px,46vw);max-height:11vh;margin:0 auto 14px;object-fit:contain}
   .brand{margin:0;line-height:1;font-weight:900;text-transform:uppercase;letter-spacing:.02em}
-  .brand .l1{display:block;font-size:clamp(16px,2.6vw,30px);letter-spacing:.35em;color:var(--cyan)}
-  .brand .l2{display:block;font-size:clamp(38px,8vw,96px);
-    background:linear-gradient(90deg,var(--gold),var(--pink));-webkit-background-clip:text;background-clip:text;
-    color:transparent;filter:drop-shadow(0 6px 24px rgba(0,0,0,.45));margin-top:6px}
-  .brand .l3{display:block;font-size:clamp(18px,3.2vw,38px);letter-spacing:.28em;margin-top:6px}
+  .brand .l2{display:block;font-size:clamp(38px,8vw,96px);color:var(--gold);margin-top:6px;
+    text-shadow:0 3px 0 #b8541a,0 6px 18px rgba(0,0,0,.35)}
+  .brand .l3{display:block;font-size:clamp(18px,3.2vw,38px);letter-spacing:.28em;margin-top:6px;color:var(--pink)}
   .datestamp{color:var(--muted);letter-spacing:.2em;text-transform:uppercase;font-size:clamp(11px,1.5vw,15px);margin:22px 0 6px}
   .theme-pill{display:inline-block;margin:8px 0 18px;padding:10px 22px;border-radius:999px;
     background:rgba(255,200,61,.14);border:2px solid rgba(255,200,61,.5);color:var(--gold);
@@ -83,10 +81,10 @@
 
   /* ---------- Buttons ---------- */
   .btn{min-height:50px;padding:11px 22px;border:2px solid var(--line);border-radius:16px;color:#fff;
-    background:rgba(30,16,70,.8);font-weight:800;cursor:pointer;letter-spacing:.03em;text-decoration:none;
-    display:inline-flex;align-items:center;justify-content:center;transition:transform .15s,background .15s,border-color .15s}
+    background:rgba(30,16,70,.85);font-weight:800;cursor:pointer;letter-spacing:.03em;text-decoration:none;
+    display:inline-flex;align-items:center;justify-content:center;transition:transform .15s,background-color .15s,border-color .15s}
   .btn:hover:not(:disabled),.btn:focus-visible{transform:scale(1.04);border-color:var(--gold)}
-  .btn.primary{background:linear-gradient(90deg,var(--gold),#ff9f3d);color:#2a1300;border-color:#ffe39a}
+  .btn.primary{background:var(--gold);color:#2a1300;border-color:#ffe39a}
   .btn.pink{background:var(--pink);border-color:#ff9cc6}
   .btn.ghost{background:transparent;min-height:44px;font-size:clamp(12px,1.4vw,15px)}
   .btn-lg{font-size:clamp(15px,2vw,20px);min-width:min(270px,72vw);text-transform:uppercase}
@@ -101,46 +99,47 @@
   .score small{display:block;font-size:.45em;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
   .dots{display:flex;gap:clamp(5px,1vw,10px);justify-content:center}
   .dot{width:clamp(14px,2.4vw,26px);height:clamp(14px,2.4vw,26px);border-radius:50%;
-    background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.25);transition:background .3s,transform .3s}
+    background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.25);transition:background-color .3s,transform .3s}
   .dot.now{border-color:var(--gold);transform:scale(1.2)}
   .dot.ok{background:var(--green);border-color:var(--green)}
   .dot.bad{background:var(--red);border-color:var(--red)}
-  .timebar{height:clamp(8px,1.2vh,14px);border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden}
+  .timebar{height:clamp(8px,1.2vh,14px);border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;contain:paint}
   .timebar i{display:block;height:100%;width:100%;border-radius:99px;
-    background:linear-gradient(90deg,var(--green),var(--gold),var(--pink));transform-origin:left;transition:transform .1s linear}
+    background:linear-gradient(90deg,var(--green),var(--gold),var(--pink));transform-origin:left;will-change:transform}
   .qcard{background:var(--panel);border:1px solid var(--line);border-radius:24px;
-    padding:clamp(18px,3.4vw,40px);box-shadow:0 20px 60px rgba(0,0,0,.35);animation:pop .4s}
+    padding:clamp(18px,3.4vw,40px);box-shadow:0 10px 30px rgba(0,0,0,.3);animation:pop .4s}
   .qnum{font-size:clamp(11px,1.4vw,14px);letter-spacing:.24em;text-transform:uppercase;color:var(--cyan);font-weight:800;margin-bottom:10px}
   .qtext{font-size:clamp(20px,3.3vw,40px);font-weight:800;line-height:1.25;margin:0}
   .options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(18px,2.8vw,34px)}
   .opt{position:relative;text-align:left;min-height:clamp(54px,8.5vh,92px);padding:12px 16px 12px clamp(54px,6.4vw,72px);
-    border:3px solid var(--line);border-radius:18px;background:rgba(30,16,70,.85);color:#fff;cursor:pointer;
+    border:3px solid var(--line);border-radius:18px;background:rgba(30,16,70,.88);color:#fff;cursor:pointer;
     font-weight:700;font-size:clamp(15px,2vw,23px);line-height:1.25;
-    transition:transform .15s,background .15s,border-color .15s;opacity:0;animation:pop .35s forwards}
+    transition:transform .15s,background-color .15s,border-color .15s;animation:pop .35s both}
   .opt:nth-child(2){animation-delay:.05s}.opt:nth-child(3){animation-delay:.1s}.opt:nth-child(4){animation-delay:.15s}
   .opt .key{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:clamp(30px,4.2vw,44px);height:clamp(30px,4.2vw,44px);
     border-radius:12px;display:grid;place-items:center;font-weight:900;color:#2a1300;font-size:clamp(15px,2vw,22px)}
   .opt:nth-child(1) .key{background:var(--gold)}.opt:nth-child(2) .key{background:var(--pink);color:#fff}
   .opt:nth-child(3) .key{background:var(--cyan)}.opt:nth-child(4) .key{background:#9b7bff;color:#fff}
-  .opt:hover:not(:disabled),.opt:focus-visible{transform:scale(1.03);border-color:var(--gold);background:rgba(60,30,120,.9)}
+  .opt:hover:not(:disabled),.opt:focus-visible{transform:scale(1.03);border-color:var(--gold);background:rgba(60,30,120,.92)}
   .opt:disabled{cursor:default}
-  .opt.right{background:rgba(34,201,122,.35);border-color:var(--green);animation:none;opacity:1}
-  .opt.wrong{background:rgba(255,90,90,.3);border-color:var(--red);animation:shake .4s;opacity:1}
+  .opt.right{background:rgba(34,201,122,.4);border-color:var(--green);animation:none;opacity:1}
+  .opt.wrong{background:rgba(255,90,90,.35);border-color:var(--red);animation:shake .4s;opacity:1}
   .opt.dim{opacity:.45;animation:none}
   .feedback{min-height:1.6em;font-weight:900;font-size:clamp(18px,2.6vw,30px)}
   .feedback.ok{color:var(--green)}.feedback.bad{color:var(--red)}
   .nextrow{display:flex;justify-content:center;min-height:50px;margin-top:14px}
-  @keyframes pop{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+  @keyframes pop{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
   @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 
   /* ---------- Results ---------- */
   .result-card{background:var(--panel);border:1px solid var(--line);border-radius:26px;padding:clamp(20px,4vw,44px);animation:pop .5s}
-  .big-score{font-size:clamp(56px,12vw,140px);font-weight:900;line-height:1;
-    background:linear-gradient(90deg,var(--gold),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .big-score{font-size:clamp(56px,12vw,140px);font-weight:900;line-height:1;color:var(--gold);
+    text-shadow:0 4px 0 #b8541a}
   .stars{font-size:clamp(30px,6vw,64px);letter-spacing:.1em;margin:6px 0}
+  .stars .off{opacity:.25}
   .verdict{font-size:clamp(20px,3vw,34px);font-weight:900;margin:6px 0}
   .points{color:var(--muted);font-size:clamp(14px,1.8vw,19px);margin-bottom:18px}
-  .review{text-align:left;display:grid;gap:10px;margin:30px 0 18px;max-height:none}
+  .review{text-align:left;display:grid;gap:10px;margin:30px 0 18px}
   .review div{padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.06);font-size:clamp(13px,1.6vw,16px);line-height:1.4}
   .review b{color:var(--gold)}
   .review .x{color:var(--red);font-weight:800}.review .t{color:var(--green);font-weight:800}
@@ -151,7 +150,6 @@
     font-weight:700;font-size:clamp(12px,1.6vw,15px);color:#bdf2ff}
   .archive-flag.on{display:block}
   .archive-flag.practice{background:rgba(255,79,154,.14);border-color:rgba(255,79,154,.5);color:#ffd0e4}
-  .practice-note{color:var(--muted);font-size:clamp(13px,1.6vw,16px);margin:10px 0 0}
 
   /* ---------- Archive ---------- */
   .archive-head h2{font-size:clamp(26px,4vw,48px);margin:0 0 6px;font-weight:900;text-transform:uppercase}
@@ -171,10 +169,9 @@
   .archive-foot{margin-top:36px;display:flex;justify-content:center}
 
   /* ---------- Misc ---------- */
-  #soundBtn{position:fixed;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));z-index:20;
-    width:52px;height:52px;min-height:0;padding:0;border-radius:50%;font-size:21px}
-  #copyright{position:fixed;left:0;right:0;bottom:0;z-index:30;background:linear-gradient(transparent,rgba(13,6,34,.85) 45%);text-align:center;font-size:clamp(10px,1.3vw,13px);
-    color:rgba(255,255,255,.6);padding:8px 12px calc(env(safe-area-inset-bottom) + 8px);pointer-events:none}
+  #copyright{position:fixed;left:0;right:0;bottom:0;z-index:30;text-align:center;font-size:clamp(10px,1.3vw,13px);
+    color:rgba(255,255,255,.7);background:linear-gradient(rgba(13,6,34,0),rgba(13,6,34,.85) 45%);
+    padding:10px 12px calc(env(safe-area-inset-bottom) + 8px);pointer-events:none}
   #loader{position:fixed;inset:0;display:grid;place-items:center;align-content:center;gap:22px;background:var(--bg1);z-index:9999;
     transition:opacity .5s;padding:24px;text-align:center}
   #loader.hide{opacity:0;pointer-events:none}
@@ -185,29 +182,40 @@
   .load-error b{color:var(--gold);display:block;font-size:22px;margin-bottom:8px}
   .load-error code{background:rgba(255,255,255,.1);padding:2px 6px;border-radius:5px}
   @keyframes spin{to{transform:rotate(360deg)}}
-  .confetti{position:absolute;top:-20px;width:12px;height:18px;z-index:50;pointer-events:none;animation:fall linear forwards}
-  @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+  .confetti{position:absolute;top:-20px;width:12px;height:18px;animation:fall linear forwards;will-change:transform}
+  @keyframes fall{to{transform:translateY(115vh) rotate(720deg)}}
+
+  /* ---------- Lite mode (fallback) ---------- */
+  html.lite .screen,html.lite .hidden-left,html.lite .hidden-right{transition:none}
+  html.lite .qcard,html.lite .result-card,html.lite .opt{animation:none;box-shadow:none}
+  html.lite .btn,html.lite .opt,html.lite .rcard,html.lite .dot{transition:none}
+  html.lite .btn:hover:not(:disabled),html.lite .btn:focus-visible,
+  html.lite .opt:hover:not(:disabled),html.lite .opt:focus-visible,
+  html.lite .rcard:hover,html.lite .rcard:focus-visible{transform:none}
+  html.lite .brand .l2,html.lite .big-score{text-shadow:none}
+  html.lite #bgVideo{transition:none}
+  html.lite #copyright{background:rgba(13,6,34,.85)}
+  html.lite .opt.wrong{animation:none}
+  html.lite{--panel:#1d1046}
+  html.lite .opt{background:#22124f}
+  html.lite .opt:hover:not(:disabled),html.lite .opt:focus-visible{background:#33196e}
 
   /* ---------- Responsive ---------- */
   @media (max-width:700px){
-    .options{grid-template-columns:1fr}
+    .options{grid-template-columns:1fr;gap:16px}
     .stats{grid-template-columns:repeat(2,1fr)}
     .actions{grid-template-columns:1fr;gap:20px}
     .archive-grid{grid-template-columns:1fr;gap:20px}
-    .options{gap:16px}
     .actions-col{gap:24px}
-    #soundBtn{width:44px;height:44px;font-size:18px}
   }
-  /* Short landscape phones: tighten vertical space */
   @media (max-height:500px) and (orientation:landscape){
     .logo{max-height:9vh}
     .opt{min-height:46px}
     .brand .l2{font-size:clamp(30px,6vw,60px)}
     .datestamp{margin-top:10px}
   }
-  /* Smart TVs / big screens: overscan-safe padding, bigger targets */
   @media (min-width:1600px){
-    .screen{padding:5vh 6vw 7vh}
+    .screen{padding:5vh 6vw 8vh}
     .wrap{width:min(1500px,100%)}
     .btn{min-height:68px;font-size:22px}
     .opt{min-height:12vh}
@@ -215,23 +223,34 @@
     .options{gap:40px}
     .actions-col{gap:40px}
   }
+  html.tv .screen{padding:5vh 6vw 8vh}
   @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
+<script>
+/* Runs before first paint so TVs / weak devices never render the heavy version. */
+(function(){
+  var ua = navigator.userAgent || '', h = document.documentElement;
+  var tv = /SMART-?TV|SmartTV|Tizen|Web0S|webOS|NetCast|HbbTV|BRAVIA|Philips|VIDAA|Roku|AFT[A-Z]|CrKey|GoogleTV|Android TV|AndroidTV|Xbox|PlayStation|Opera TV|Vewd/i.test(ua);
+  var weak = (navigator.deviceMemory && navigator.deviceMemory <= 2) ||
+             (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2);
+  var saveData = navigator.connection && navigator.connection.saveData;
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(tv) h.className += ' tv';
+  if(tv || weak) h.className += ' lite';
+  if(saveData || reduce) h.className += ' novideo';
+  try{ var f = localStorage.getItem('sumt.fx'); if(f) h.className += ' ' + f; }catch(e){}
+})();
+</script>
 </head>
 <body>
-<div id="fx">
-<div id="bg"></div>
-<div class="spot a"></div><div class="spot b"></div>
-<!-- Background video: cinema.mp4 sits beside this file. Always muted, looping, 25% visible. -->
-<!-- Optional: add cinema_mobile.mp4 (smaller, e.g. 720p) and phones will use it automatically. -->
-<video id="bgVideo" autoplay muted loop playsinline webkit-playsinline x5-playsinline preload="metadata"
-       disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback"
-       aria-hidden="true" tabindex="-1"></video>
+<div id="fx" aria-hidden="true">
+  <div id="bg"></div>
+  <!-- Background video: cinema.mp4 beside this file. Optional cinema_mobile.mp4 for phones. Always muted. -->
+  <video id="bgVideo" muted playsinline webkit-playsinline x5-playsinline preload="metadata"
+         disablepictureinpicture disableremoteplayback controlslist="nodownload nofullscreen noremoteplayback"
+         tabindex="-1"></video>
 </div>
 <div id="confettiLayer"></div>
-<!-- Optional: background music. Hidden automatically if missing. -->
-<audio id="bgm" loop muted preload="auto"><source src="trivia_music.mp3" type="audio/mpeg"></audio>
-<button id="soundBtn" class="btn" type="button" aria-label="Toggle music">&#9835;</button>
 
 <div id="loader" role="status" aria-live="polite">
   <div class="ring"></div>
@@ -295,29 +314,34 @@
    STUDIO UNIVERSAL MOVIE TRIVIA - daily round game
    - Rounds load from DATA_URL: {"themes":[{"theme":"..","questions":[[q,a,b,c,d,answer1to4],..]}]}
    - Day 1 = START_DATE, one themed round per day, wrapping after the last.
-   - Progress, scores and streak saved in localStorage. Mid-round progress
-     is saved too, so a round can't be restarted for a better score.
+   - Progress, scores and streak saved in localStorage.
    ====================================================================== */
 const DATA_URL   = 'movietrivia_fixed.json';
 const START_DATE = '2026-10-15';
 const STORE_KEY  = 'sumt.v1';
-const SECONDS    = 20;           // time per question
-const BASE_PTS   = 100;          // points for a correct answer
-const SPEED_PTS  = 100;          // max bonus for answering fast
+const FX_KEY     = 'sumt.fx';
+const SECONDS    = 20;
+const BASE_PTS   = 100;
+const SPEED_PTS  = 100;
+const VIDEO_DESKTOP = 'cinema.mp4';
+const VIDEO_MOBILE  = 'cinema_mobile.mp4';
 
-/* ---------- Dates (local midnight, no UTC drift) ---------- */
+const root = document.documentElement;
+const has = c => root.classList.contains(c);
+
+/* ---------- Dates ---------- */
 const MS_DAY = 86400000;
 const localMidnight = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 const parseISO = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1]-1, p[2]).getTime(); };
 const toISO = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-const dayNumberFor = d => Math.floor((localMidnight(d) - parseISO(START_DATE)) / MS_DAY) + 1;
-const dateForDay = n => new Date(parseISO(START_DATE) + (n-1) * MS_DAY);
+const dayNumberFor = d => Math.round((localMidnight(d) - parseISO(START_DATE)) / MS_DAY) + 1;
+const dateForDay = n => { const s = new Date(parseISO(START_DATE)); s.setDate(s.getDate() + n - 1); return s; };
 const isoForDay  = n => toISO(dateForDay(n));
 const roundForDay = n => rounds[((n-1) % rounds.length + rounds.length) % rounds.length];
 const longDate = d => d.toLocaleDateString(undefined, { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
 /* ---------- Storage ---------- */
-const blankStore = () => ({ results:{}, progress:{}, streak:0, best:0, lastPlayedISO:null, muted:false });
+const blankStore = () => ({ results:{}, progress:{}, streak:0, best:0, lastPlayedISO:null });
 function loadStore(){
   try{ const raw = localStorage.getItem(STORE_KEY); return raw ? Object.assign(blankStore(), JSON.parse(raw)) : blankStore(); }
   catch(e){ return blankStore(); }
@@ -334,11 +358,22 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today = new Date(), todayISO = toISO(today);
 let store = loadStore(), rounds = [], todayDay = 1;
-let active = null;               // { day, iso, isToday, round, answers:[{pick,correct,pts}] }
-let qIndex = 0, qStart = 0, timerRaf = null, locked = false, countdownId = null, autoNext = null;
+let active = null, qIndex = 0, qStart = 0, timerRaf = null, locked = false, countdownId = null;
 const isTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 function softFocus(el){ if(!el || isTouch) return; try{ el.focus({ preventScroll:true }); }catch(e){} }
-function toTop(el){ if(!el) return; el.scrollTop = 0; setTimeout(() => { el.scrollTop = 0; }, 150); setTimeout(() => { el.scrollTop = 0; }, 450); }
+function toTop(el){ if(!el) return; el.scrollTop = 0; setTimeout(() => { el.scrollTop = 0; }, 150); }
+
+/* ---------- Fallback switches ---------- */
+function rememberFx(){
+  const f = ['lite','novideo'].filter(has).join(' ');
+  try{ localStorage.setItem(FX_KEY, f); }catch(e){}
+}
+function goLite(){ if(has('lite')) return; root.classList.add('lite'); rememberFx(); }
+function goNoVideo(){
+  if(!has('novideo')){ root.classList.add('novideo'); rememberFx(); }
+  try{ bgv.pause(); bgv.removeAttribute('src'); bgv.load(); }catch(e){}
+  bgv.classList.remove('playing');
+}
 
 /* ---------- Load data ---------- */
 async function loadRounds(){
@@ -355,7 +390,7 @@ function showLoadError(err){
     '<code>http://</code>, not <code>file://</code>. Quick local server: <code>python -m http.server</code></div>';
 }
 
-/* ---------- Stats ---------- */
+/* ---------- Landing ---------- */
 function allResults(){ return Object.keys(store.results).map(k => store.results[k]); }
 function paintLanding(){
   const r = allResults();
@@ -390,8 +425,7 @@ function show(id){
 }
 
 /* ---------- Round flow ---------- */
-/* practice = true replays a finished round just for fun. Nothing is saved,
-   so the official score, streak and stats are never changed. */
+/* practice = true replays a finished round for fun. Nothing is saved. */
 function openDay(n, practice){
   clearInterval(countdownId);
   const iso = isoForDay(n);
@@ -438,18 +472,23 @@ function showQuestion(){
   startTimer();
 }
 
+/* Timer: in lite mode it updates 4x a second instead of every frame. */
+let timerInt = null;
 function startTimer(){
-  cancelAnimationFrame(timerRaf);
+  cancelAnimationFrame(timerRaf); clearInterval(timerInt);
   qStart = performance.now();
   const fill = $('#timeFill');
-  const tick = now => {
-    const left = Math.max(0, 1 - (now - qStart) / (SECONDS * 1000));
-    fill.style.transform = 'scaleX(' + left + ')';
-    if(left <= 0){ answer(0); return; }
-    if(!locked) timerRaf = requestAnimationFrame(tick);
+  const step = () => {
+    if(locked) return false;
+    const left = Math.max(0, 1 - (performance.now() - qStart) / (SECONDS * 1000));
+    fill.style.transform = 'scaleX(' + left.toFixed(3) + ')';
+    if(left <= 0){ answer(0); return false; }
+    return true;
   };
-  timerRaf = requestAnimationFrame(tick);
+  if(has('lite')){ fill.style.transition = 'transform .25s linear'; step(); timerInt = setInterval(() => { if(!step()) clearInterval(timerInt); }, 250); }
+  else{ fill.style.transition = 'none'; const tick = () => { if(step()) timerRaf = requestAnimationFrame(tick); }; timerRaf = requestAnimationFrame(tick); }
 }
+function stopTimer(){ cancelAnimationFrame(timerRaf); clearInterval(timerInt); }
 
 const CHEERS = ['Nailed it!','Blockbuster!','Box office gold!','Oscar-worthy!','Superstar!','That\u2019s a wrap!','Bravo!'];
 const OOPS   = ['Plot twist!','Cut! Not quite.','Missed the cue!','Close, but no Oscar!','Back to the script!'];
@@ -458,7 +497,7 @@ const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 function answer(choice){
   if(locked) return;
   locked = true;
-  cancelAnimationFrame(timerRaf);
+  stopTimer();
   const q = active.round.questions[qIndex], right = Number(q[5]);
   const used = Math.min(1, (performance.now() - qStart) / (SECONDS * 1000));
   const correct = choice === right;
@@ -485,7 +524,6 @@ function answer(choice){
 }
 
 function next(){
-  clearTimeout(autoNext);
   qIndex++;
   if(qIndex >= active.round.questions.length) finishRound(); else showQuestion();
 }
@@ -515,7 +553,7 @@ function finishRound(){
 }
 
 function showResults(){
-  cancelAnimationFrame(timerRaf);
+  stopTimer();
   const saved = store.results[active.iso];
   const r = active.practice && active.practiceResult ? active.practiceResult : saved;
   qIndex = r.total;
@@ -538,7 +576,7 @@ function showResults(){
   $('#playArea').innerHTML =
     '<div class="result-card">' +
       '<div class="big-score">' + r.correct + '/' + r.total + '</div>' +
-      '<div class="stars">' + '\u2B50'.repeat(stars) + '<span style="opacity:.25">' + '\u2B50'.repeat(5 - stars) + '</span></div>' +
+      '<div class="stars">' + '\u2B50'.repeat(stars) + '<span class="off">' + '\u2B50'.repeat(5 - stars) + '</span></div>' +
       '<div class="verdict">' + verdict + '</div>' +
       '<div class="points">' + r.points + ' points</div>' +
       '<div class="banner">' + banner + '</div>' +
@@ -560,9 +598,9 @@ function showResults(){
   setTimeout(() => softFocus($('#shareBtn')), 300);
 }
 
-/* ---------- Share (works on https, http and file://) ---------- */
+/* ---------- Share (always the official first score) ---------- */
 async function share(){
-  const r = store.results[active.iso];   // always the official (first) score
+  const r = store.results[active.iso];
   const grid = r.answers.map(a => a.correct ? '\u{1F7E9}' : '\u{1F7E5}').join('');
   const text = 'Studio Universal Movie Trivia #' + active.day + '\n' + active.round.theme + '\n' +
                r.correct + '/' + r.total + ' \u00B7 ' + r.points + ' pts\n' + grid +
@@ -603,22 +641,24 @@ function startCountdown(){
 
 /* ---------- Confetti ---------- */
 function confetti(){
-  const cols = ['#ffc83d','#ff4f9a','#33d6ff','#22c97a','#9b7bff'];
-  for(let i = 0; i < 90; i++){
+  if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const layer = $('#confettiLayer'), cols = ['#ffc83d','#ff4f9a','#33d6ff','#22c97a','#9b7bff'];
+  const count = has('lite') ? 24 : 70;
+  for(let i = 0; i < count; i++){
     const c = document.createElement('i');
     c.className = 'confetti';
     c.style.left = Math.random() * 100 + '%';
     c.style.background = cols[i % cols.length];
     c.style.animationDuration = (2.5 + Math.random() * 2.5) + 's';
     c.style.animationDelay = Math.random() * .8 + 's';
-    $('#confettiLayer').appendChild(c);
+    layer.appendChild(c);
     setTimeout(() => c.remove(), 6000);
   }
 }
 
 /* ---------- Archive ---------- */
 function openArchive(){
-  clearInterval(countdownId); cancelAnimationFrame(timerRaf);
+  clearInterval(countdownId); stopTimer();
   const cards = [];
   for(let n = todayDay; n >= 1; n--){
     const iso = isoForDay(n), done = store.results[iso], part = store.progress[iso], isT = n === todayDay;
@@ -639,28 +679,27 @@ function openArchive(){
 }
 
 function goHome(){
-  clearInterval(countdownId); cancelAnimationFrame(timerRaf);
+  clearInterval(countdownId); stopTimer();
   paintLanding(); show('landing');
   setTimeout(() => softFocus($('#startBtn')), 450);
 }
 
-/* ---------- Keyboard / TV remote ----------
-   A-D or 1-4 answer; Enter/OK activates focus; arrows move focus spatially. */
+/* ---------- Keyboard / TV remote ---------- */
 document.addEventListener('keydown', e => {
   const onGame = !$('#game').classList.contains('hidden-right') && !$('#game').classList.contains('hidden-left');
-  if(onGame && !locked && document.querySelector('.opt')){
+  if(onGame && !locked && document.querySelector('.opt:not(:disabled)')){
     const map = { a:1, b:2, c:3, d:4, '1':1, '2':2, '3':3, '4':4 };
     const k = map[String(e.key).toLowerCase()];
     if(k){ e.preventDefault(); answer(k); return; }
   }
-  if(['Backspace','Escape','BrowserBack','GoBack'].indexOf(e.key) !== -1 && !onGame){
+  if(['Backspace','Escape','BrowserBack','GoBack'].indexOf(e.key) !== -1 || e.keyCode === 10009 || e.keyCode === 461){
     if($('#landing').classList.contains('hidden-left')){ e.preventDefault(); goHome(); }
     return;
   }
   const dirs = { ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0] };
   const d = dirs[e.key]; if(!d) return;
   const items = [].slice.call(document.querySelectorAll(
-    '.screen:not(.hidden-left):not(.hidden-right) button:not(:disabled), #soundBtn'))
+    '.screen:not(.hidden-left):not(.hidden-right) button:not(:disabled)'))
     .filter(el => el.offsetParent !== null);
   if(!items.length) return;
   e.preventDefault();
@@ -680,85 +719,124 @@ document.addEventListener('keydown', e => {
   if(best) focusItem(best);
 });
 function focusItem(el){ try{ el.focus({ preventScroll:true }); }catch(e){ el.focus(); }
-  if(el.scrollIntoView) el.scrollIntoView({ block:'nearest', behavior:'smooth' }); }
+  if(el.scrollIntoView) el.scrollIntoView({ block:'nearest', behavior: has('lite') ? 'auto' : 'smooth' }); }
 
-/* ---------- Video + music (optional assets) ---------- */
-const bgv = $('#bgVideo'), bgm = $('#bgm');
-/* ---------- Background video (mobile-friendly) ----------
-   - iOS/Android only autoplay if the video is muted + inline BEFORE the source
-     loads, so those flags are set in JS first and the src is added after.
-   - Phones/tablets use cinema_mobile.mp4 if it exists (smaller = smoother,
-     less data); otherwise they fall back to cinema.mp4.
-   - It fades in only once it is actually playing, so a blocked or slow video
-     never shows a frozen frame or a play button - the gradient shows instead.
-   - Restarts after pauses/stalls, when the tab/app comes back, on rotation,
-     on the first touch/key (iOS Low Power Mode), and on a light watchdog. */
-const VIDEO_DESKTOP = 'cinema.mp4';
-const VIDEO_MOBILE  = 'cinema_mobile.mp4';
+/* ======================================================================
+   BACKGROUND VIDEO - anti-flicker (seamless loop, no play() spam, watchdog)
+   ====================================================================== */
+const bgv = $('#bgVideo');
 const smallScreen = Math.min(screen.width, screen.height) <= 820 || isTouch;
-const conn = navigator.connection || {};
-['muted','playsinline','webkit-playsinline','loop','autoplay'].forEach(a => bgv.setAttribute(a, ''));
-bgv.muted = true; bgv.defaultMuted = true; bgv.volume = 0; bgv.loop = true; bgv.playsInline = true;
-if(!smallScreen && !conn.saveData) bgv.preload = 'auto';
+let lastPlayCall = 0, failures = 0, stuckChecks = 0, lastTime = -1, triedFallback = false, waitingForGesture = false;
 
-let triedFallback = false;
-function setVideoSrc(url){ bgv.src = url; bgv.load(); kickVideo(); }
-bgv.addEventListener('error', () => {
-  if(!triedFallback && bgv.getAttribute('src') !== VIDEO_DESKTOP){ triedFallback = true; setVideoSrc(VIDEO_DESKTOP); }
-  else bgv.classList.remove('playing');
-});
-function kickVideo(){
-  if(!bgv.isConnected || document.hidden || !bgv.getAttribute('src')) return;
+function videoWanted(){ return !has('novideo') && !document.hidden && !!bgv.getAttribute('src'); }
+function safePlay(){
+  if(!videoWanted() || !bgv.paused) return;
+  const now = Date.now(); if(now - lastPlayCall < 2000) return;
+  lastPlayCall = now;
   bgv.muted = true;
-  if(bgv.paused || bgv.ended){ const p = bgv.play(); if(p && p.catch) p.catch(() => {}); }
+  const p = bgv.play();
+  if(p && p.catch) p.catch(err => {
+    if(err && err.name === 'NotAllowedError'){
+      if(!waitingForGesture){ waitingForGesture = true;
+        const go = () => { waitingForGesture = false; lastPlayCall = 0; safePlay(); };
+        ['pointerdown','touchend','keydown'].forEach(ev => window.addEventListener(ev, go, { once:true, passive:true }));
+      }
+    } else if(err && err.name !== 'AbortError'){ if(++failures >= 3) goNoVideo(); }
+  });
 }
-bgv.addEventListener('playing', () => bgv.classList.add('playing'));
-['loadeddata','canplay','pause','stalled','ended'].forEach(ev => bgv.addEventListener(ev, kickVideo));
-bgv.addEventListener('volumechange', () => { if(!bgv.muted) bgv.muted = true; });
-document.addEventListener('visibilitychange', () => { if(document.hidden) bgv.pause(); else kickVideo(); });
-window.addEventListener('pageshow', kickVideo);
-window.addEventListener('focus', kickVideo);
-window.addEventListener('orientationchange', () => setTimeout(kickVideo, 400));
-['pointerdown','touchend','keydown','click'].forEach(ev => window.addEventListener(ev, kickVideo, { passive:true }));
-setInterval(kickVideo, 4000);
-setVideoSrc(smallScreen ? VIDEO_MOBILE : VIDEO_DESKTOP);
+function setVideoSrc(url){ bgv.src = url; bgv.load(); }
 
-let hasMusic = true, musicOn = !store.muted;
-bgm.volume = 0.3;
-bgm.querySelector('source').addEventListener('error', () => { hasMusic = false; $('#soundBtn').style.display = 'none'; });
-function paintSound(){ $('#soundBtn').innerHTML = musicOn ? '&#9835;' : '&#128263;'; }
-function startMusic(){ if(!hasMusic || !musicOn) return; bgm.muted = false; const p = bgm.play(); if(p && p.catch) p.catch(() => {}); }
-['pointerdown','keydown','touchstart'].forEach(ev => window.addEventListener(ev, startMusic, { passive:true, once:true }));
-$('#soundBtn').addEventListener('click', e => {
-  e.stopPropagation(); musicOn = !musicOn; store.muted = !musicOn; saveStore();
-  if(musicOn) startMusic(); else bgm.pause();
-  paintSound();
-});
+if(has('novideo')){
+  bgv.remove();
+}else{
+  ['muted','playsinline','webkit-playsinline'].forEach(a => bgv.setAttribute(a, ''));
+  bgv.muted = true; bgv.defaultMuted = true; bgv.volume = 0; bgv.loop = false; bgv.playsInline = true;
+  bgv.preload = (smallScreen || has('lite')) ? 'metadata' : 'auto';
 
+  bgv.addEventListener('error', () => {
+    if(!triedFallback && bgv.getAttribute('src') === VIDEO_MOBILE){ triedFallback = true; setVideoSrc(VIDEO_DESKTOP); safePlay(); }
+    else goNoVideo();
+  });
+  bgv.addEventListener('canplay', safePlay, { once:true });
+  bgv.addEventListener('playing', () => { bgv.classList.add('playing'); stuckChecks = 0; });
+  bgv.addEventListener('volumechange', () => { if(!bgv.muted) bgv.muted = true; });
+  bgv.addEventListener('timeupdate', () => {
+    const d = bgv.duration;
+    if(d && isFinite(d) && d > 1 && bgv.currentTime >= d - 0.25){ bgv.currentTime = 0.01; }
+  });
+  bgv.addEventListener('ended', () => { bgv.currentTime = 0; lastPlayCall = 0; safePlay(); });
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden){ bgv.pause(); }
+    else { lastPlayCall = 0; lastTime = -1; stuckChecks = 0; safePlay(); }
+  });
+  window.addEventListener('pageshow', () => { lastPlayCall = 0; safePlay(); });
 
-/* ---------- Fit-to-screen guard (mobile + TV) ----------
-   Keeps the page exactly the size of the visible screen, follows the mobile
-   address bar / rotation, and blocks pinch and double-tap zoom (iOS ignores
-   the viewport tag for those). */
-function fitScreen(){
-  const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
-  document.documentElement.style.setProperty('--app-h', Math.round(h) + 'px');
-  if(window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  setInterval(() => {
+    if(!videoWanted()) return;
+    if(bgv.paused){ safePlay(); return; }
+    const t = bgv.currentTime;
+    if(bgv.readyState >= 3 && t === lastTime){
+      if(++stuckChecks >= 3){ failures++; stuckChecks = 0; bgv.pause(); lastPlayCall = 0; safePlay(); if(failures >= 3) goNoVideo(); }
+    } else stuckChecks = 0;
+    lastTime = t;
+  }, 3000);
+
+  setVideoSrc(smallScreen ? VIDEO_MOBILE : VIDEO_DESKTOP);
+  safePlay();
 }
-fitScreen();
-['resize','orientationchange','pageshow'].forEach(ev => window.addEventListener(ev, () => { fitScreen(); setTimeout(fitScreen, 300); }));
-if(window.visualViewport) visualViewport.addEventListener('resize', fitScreen);
+
+/* ======================================================================
+   FRAME-RATE MONITOR - step 1 lite mode, step 2 video off. Remembered per device.
+   ====================================================================== */
+(function monitor(){
+  if(has('lite') && has('novideo')) return;
+  let frames = 0, slow = 0, last = 0, windows = 0, badWindows = 0, start = performance.now();
+  function loop(t){
+    if(document.hidden){ last = 0; requestAnimationFrame(loop); return; }
+    if(last){ const dt = t - last; frames++; if(dt > 50) slow++; }
+    last = t;
+    if(t - start >= 2000){
+      windows++;
+      const fps = frames / ((t - start) / 1000), slowRatio = frames ? slow / frames : 1;
+      if(fps < 40 || slowRatio > 0.15) badWindows++; else badWindows = Math.max(0, badWindows - 1);
+      if(badWindows >= 2 && !has('lite')){ goLite(); badWindows = 0; }
+      else if(badWindows >= 2 && has('lite')){ goNoVideo(); return; }
+      frames = 0; slow = 0; start = t;
+      if(windows >= 10) return;
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+
+/* ---------- Fit-to-screen (debounced) ---------- */
+(function(){
+  const useCss = window.CSS && CSS.supports && CSS.supports('height', '100dvh');
+  let lastH = 0, timer = null;
+  function apply(){
+    timer = null;
+    const h = Math.round((window.visualViewport && window.visualViewport.height) || window.innerHeight);
+    if(!useCss && Math.abs(h - lastH) > 2){ lastH = h; root.style.setProperty('--app-h', h + 'px'); }
+    if(window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  }
+  function schedule(){ if(timer) clearTimeout(timer); timer = setTimeout(apply, 150); }
+  apply();
+  ['resize','orientationchange','pageshow'].forEach(ev => window.addEventListener(ev, schedule));
+  if(window.visualViewport) visualViewport.addEventListener('resize', schedule);
+})();
+
+/* Block pinch / double-tap zoom. */
 ['gesturestart','gesturechange','gestureend'].forEach(ev => document.addEventListener(ev, e => e.preventDefault(), { passive:false }));
 document.addEventListener('touchmove', e => { if(e.touches && e.touches.length > 1) e.preventDefault(); }, { passive:false });
 let lastTouchEnd = 0;
 document.addEventListener('touchend', e => {
   const now = Date.now();
-  if(now - lastTouchEnd < 350 && !e.target.closest('button,a')) e.preventDefault();
+  if(now - lastTouchEnd < 350 && !(e.target.closest && e.target.closest('button,a'))) e.preventDefault();
   lastTouchEnd = now;
 }, { passive:false });
+
 /* ---------- Boot ---------- */
 $('#year').textContent = new Date().getFullYear();
-paintSound();
 loadRounds().then(list => {
   rounds = list;
   todayDay = Math.max(1, dayNumberFor(today));
